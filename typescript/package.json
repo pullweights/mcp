@@ -1,0 +1,42 @@
+{
+  "name": "@pullweights/mcp",
+  "version": "0.1.0",
+  "description": "MCP server for PullWeights — search, pull, and push AI models",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "pullweights-mcp": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "lint": "tsc --noEmit",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pullweights/mcp.git",
+    "directory": "typescript"
+  },
+  "keywords": [
+    "mcp",
+    "pullweights",
+    "ai",
+    "models",
+    "model-context-protocol"
+  ]
+}

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.js.map
+.venv/
+__pycache__/
+*.egg-info/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+build/
+*.egg

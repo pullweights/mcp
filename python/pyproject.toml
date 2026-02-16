@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pullweights-mcp"
+version = "0.1.0"
+description = "MCP server for PullWeights — search, pull, and push AI models"
+readme = "../README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "PullWeights" }]
+keywords = ["mcp", "pullweights", "ai", "models", "model-context-protocol"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "mcp>=1.6.0",
+    "httpx>=0.27.0",
+]
+
+[project.scripts]
+pullweights-mcp = "pullweights_mcp.server:main"
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+]
+
+[project.urls]
+Homepage = "https://pullweights.com"
+Repository = "https://github.com/pullweights/mcp"
+
+[tool.ruff]
+line-length = 100
+
+[tool.mypy]
+strict = true
+python_version = "3.10"
