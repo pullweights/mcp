@@ -70,6 +70,7 @@ class PullWeightsClient:
         self,
         *,
         q: str | None = None,
+        type: str | None = None,
         framework: str | None = None,
         sort: str | None = None,
         per_page: int | None = None,
@@ -78,6 +79,8 @@ class PullWeightsClient:
         params: dict[str, Any] = {}
         if q:
             params["q"] = q
+        if type:
+            params["type"] = type
         if framework:
             params["framework"] = framework
         if sort:

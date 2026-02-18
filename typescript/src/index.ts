@@ -42,23 +42,24 @@ const server = new McpServer({
 // --- search ---
 server.tool(
   "search",
-  "Search PullWeights for AI models by query, framework, or sort order",
+  "Search PullWeights for models, datasets, and container images",
   {
     query: z.string().optional().describe("Search query string"),
+    type: z.enum(["model", "dataset", "container_image"]).optional().describe("Filter by type"),
     framework: z.string().optional().describe("Filter by framework (e.g. pytorch, gguf, safetensors)"),
     sort: z.enum(["downloads", "created", "name", "updated"]).optional().describe("Sort order"),
     per_page: z.number().min(1).max(100).optional().describe("Results per page (default 20)"),
     page: z.number().min(1).optional().describe("Page number"),
   },
-  async ({ query, framework, sort, per_page, page }) => {
-    const res = await client.search({ q: query, framework, sort, per_page, page });
+  async ({ query, type, framework, sort, per_page, page }) => {
+    const res = await client.search({ q: query, type, framework, sort, per_page, page });
     if (res.results.length === 0) {
-      return { content: [{ type: "text", text: "No models found." }] };
+      return { content: [{ type: "text", text: "No results found." }] };
     }
-    const lines = res.results.map(
-      (m) =>
-        `${m.org}/${m.name} — ${m.description || "No description"} (${formatBytes(m.download_count)} downloads, ${m.framework || "unknown"})`
-    );
+    const lines = res.results.map((m) => {
+      const badge = m.type === "dataset" ? " [dataset]" : m.type === "container_image" ? " [container]" : "";
+      return `${m.org}/${m.name}${badge} — ${m.description || "No description"} (${formatBytes(m.download_count)} downloads, ${m.framework || "unknown"})`;
+    });
     lines.push(`\nPage ${res.page}/${Math.ceil(res.total / res.per_page)} (${res.total} total)`);
     return { content: [{ type: "text", text: lines.join("\n") }] };
   }
@@ -67,7 +68,7 @@ server.tool(
 // --- ls ---
 server.tool(
   "ls",
-  "List models in an org, or list your orgs (requires auth)",
+  "List items in an org (models, datasets, containers), or list your orgs (requires auth)",
   {
     org: z.string().optional().describe("Organization name. Omit to list your orgs."),
   },
@@ -75,12 +76,12 @@ server.tool(
     if (org) {
       const models = await client.listModels(org);
       if (models.length === 0) {
-        return { content: [{ type: "text", text: `No models found in ${org}.` }] };
+        return { content: [{ type: "text", text: `No items found in ${org}.` }] };
       }
-      const lines = models.map(
-        (m) =>
-          `${m.org}/${m.name}:${m.tags[0] || "latest"} — ${m.description || "No description"} [${m.visibility}]`
-      );
+      const lines = models.map((m) => {
+        const badge = m.type === "dataset" ? " [dataset]" : m.type === "container_image" ? " [container]" : "";
+        return `${m.org}/${m.name}${badge}:${m.tags[0] || "latest"} — ${m.description || "No description"} [${m.visibility}]`;
+      });
       return { content: [{ type: "text", text: lines.join("\n") }] };
     }
     const orgs = await client.listOrgs();
@@ -89,7 +90,7 @@ server.tool(
     }
     const lines = orgs.map(
       (o) =>
-        `${o.name}${o.is_personal ? " (personal)" : ""} — ${o.model_count} models, ${o.member_count} members [${o.role}]`
+        `${o.name}${o.is_personal ? " (personal)" : ""} — ${o.model_count} items, ${o.member_count} members [${o.role}]`
     );
     return { content: [{ type: "text", text: lines.join("\n") }] };
   }
@@ -155,7 +156,7 @@ server.tool(
 // --- pull ---
 server.tool(
   "pull",
-  "Download a model's files to disk with SHA-256 verification",
+  "Download files for a model or dataset to disk with SHA-256 verification",
   {
     model: z.string().describe("Model reference: org/model or org/model:tag"),
     output_dir: z
@@ -206,20 +207,24 @@ server.tool(
 // --- push ---
 server.tool(
   "push",
-  "Upload model files to PullWeights (two-phase: init, upload to S3, finalize)",
+  "Upload files to PullWeights (two-phase: init, upload to S3, finalize)",
   {
     model: z.string().describe("Model reference: org/model:tag"),
     files: z
       .array(z.string())
       .min(1)
       .describe("Absolute file paths to upload"),
-    description: z.string().optional().describe("Model description"),
+    type: z
+      .enum(["model", "dataset", "container_image"])
+      .optional()
+      .describe("Item type (default: model)"),
+    description: z.string().optional().describe("Description"),
     visibility: z
       .enum(["public", "private"])
       .optional()
-      .describe("Model visibility (default: public)"),
+      .describe("Visibility (default: public)"),
   },
-  async ({ model, files, description, visibility }) => {
+  async ({ model, files, type: itemType, description, visibility }) => {
     const ref = parseModelRef(model);
     if (ref.tag === "latest" && !model.includes(":")) {
       throw new Error("Push requires an explicit tag. Use org/model:tag format.");
@@ -243,6 +248,7 @@ server.tool(
     // Phase 1: init
     const initRes = await client.pushInit(ref.org, ref.model, {
       tag: ref.tag,
+      type: itemType,
       description,
       visibility,
       files: fileInfos.map((f) => ({

@@ -1,7 +1,7 @@
 {
   "name": "@pullweights/mcp",
-  "version": "0.1.0",
-  "description": "MCP server for PullWeights — search, pull, and push AI models",
+  "version": "0.2.0",
+  "description": "MCP server for PullWeights — search, pull, and push models, datasets, and container images",
   "license": "MIT",
   "type": "module",
   "bin": {

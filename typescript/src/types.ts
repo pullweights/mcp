@@ -4,6 +4,7 @@ export interface SearchResult {
   name: string;
   description: string | null;
   framework: string | null;
+  type: string;
   download_count: number;
   visibility: string;
   created_at: string;
@@ -23,6 +24,7 @@ export interface ModelSummary {
   name: string;
   description: string | null;
   visibility: string;
+  type: string;
   framework: string | null;
   license: string | null;
   tags: string[];

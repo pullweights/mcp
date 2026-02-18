@@ -51,11 +51,16 @@ async def list_tools() -> list[types.Tool]:
     return [
         types.Tool(
             name="search",
-            description="Search PullWeights for AI models by query, framework, or sort order",
+            description="Search PullWeights for models, datasets, and container images",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "query": {"type": "string", "description": "Search query string"},
+                    "type": {
+                        "type": "string",
+                        "enum": ["model", "dataset", "container_image"],
+                        "description": "Filter by type",
+                    },
                     "framework": {
                         "type": "string",
                         "description": "Filter by framework (e.g. pytorch, gguf, safetensors)",
@@ -81,7 +86,7 @@ async def list_tools() -> list[types.Tool]:
         ),
         types.Tool(
             name="ls",
-            description="List models in an org, or list your orgs (requires auth)",
+            description="List items in an org (models, datasets, containers), or list your orgs (requires auth)",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -122,7 +127,7 @@ async def list_tools() -> list[types.Tool]:
         ),
         types.Tool(
             name="pull",
-            description="Download a model's files to disk with SHA-256 verification",
+            description="Download files for a model or dataset to disk with SHA-256 verification",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -143,7 +148,7 @@ async def list_tools() -> list[types.Tool]:
         types.Tool(
             name="push",
             description=(
-                "Upload model files to PullWeights (two-phase: init, upload to S3, finalize)"
+                "Upload files to PullWeights (two-phase: init, upload to S3, finalize)"
             ),
             inputSchema={
                 "type": "object",
@@ -158,14 +163,19 @@ async def list_tools() -> list[types.Tool]:
                         "minItems": 1,
                         "description": "Absolute file paths to upload",
                     },
+                    "type": {
+                        "type": "string",
+                        "enum": ["model", "dataset", "container_image"],
+                        "description": "Item type (default: model)",
+                    },
                     "description": {
                         "type": "string",
-                        "description": "Model description",
+                        "description": "Description",
                     },
                     "visibility": {
                         "type": "string",
                         "enum": ["public", "private"],
-                        "description": "Model visibility (default: public)",
+                        "description": "Visibility (default: public)",
                     },
                 },
                 "required": ["model", "files"],
@@ -208,6 +218,7 @@ async def _handle_search(
 ) -> list[types.TextContent | types.ImageContent | types.AudioContent | types.ResourceLink | types.EmbeddedResource]:
     res = await client.search(
         q=args.get("query"),
+        type=args.get("type"),
         framework=args.get("framework"),
         sort=args.get("sort"),
         per_page=args.get("per_page"),
@@ -215,12 +226,15 @@ async def _handle_search(
     )
     results = res["results"]
     if not results:
-        return _text("No models found.")
-    lines = [
-        f"{m['org']}/{m['name']} — {m.get('description') or 'No description'} "
-        f"({_format_bytes(m['download_count'])} downloads, {m.get('framework') or 'unknown'})"
-        for m in results
-    ]
+        return _text("No results found.")
+    lines = []
+    for m in results:
+        t = m.get("type", "model")
+        badge = " [dataset]" if t == "dataset" else " [container]" if t == "container_image" else ""
+        lines.append(
+            f"{m['org']}/{m['name']}{badge} — {m.get('description') or 'No description'} "
+            f"({_format_bytes(m['download_count'])} downloads, {m.get('framework') or 'unknown'})"
+        )
     total_pages = math.ceil(res["total"] / res["per_page"])
     lines.append(f"\nPage {res['page']}/{total_pages} ({res['total']} total)")
     return _text("\n".join(lines))
@@ -233,19 +247,23 @@ async def _handle_ls(
     if org:
         models = await client.list_models(org)
         if not models:
-            return _text(f"No models found in {org}.")
-        lines = [
-            f"{m['org']}/{m['name']}:{(m.get('tags') or ['latest'])[0]} — "
-            f"{m.get('description') or 'No description'} [{m['visibility']}]"
-            for m in models
-        ]
+            return _text(f"No items found in {org}.")
+        lines = []
+        for m in models:
+            t = m.get("type", "model")
+            badge = " [dataset]" if t == "dataset" else " [container]" if t == "container_image" else ""
+            tag = (m.get("tags") or ["latest"])[0]
+            lines.append(
+                f"{m['org']}/{m['name']}{badge}:{tag} — "
+                f"{m.get('description') or 'No description'} [{m['visibility']}]"
+            )
         return _text("\n".join(lines))
     orgs = await client.list_orgs()
     if not orgs:
         return _text("No organizations found.")
     lines = [
         f"{o['name']}{' (personal)' if o.get('is_personal') else ''} — "
-        f"{o['model_count']} models, {o['member_count']} members [{o['role']}]"
+        f"{o['model_count']} items, {o['member_count']} members [{o['role']}]"
         for o in orgs
     ]
     return _text("\n".join(lines))
@@ -366,6 +384,7 @@ async def _handle_push(
     # Phase 1: init
     init_res = await client.push_init(org, model, {
         "tag": tag,
+        "type": args.get("type"),
         "description": args.get("description"),
         "visibility": args.get("visibility"),
         "files": [

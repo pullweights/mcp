@@ -69,6 +69,7 @@ export class PullWeightsClient {
 
   async search(params: {
     q?: string;
+    type?: string;
     per_page?: number;
     framework?: string;
     sort?: string;
@@ -76,6 +77,7 @@ export class PullWeightsClient {
   }): Promise<SearchResponse> {
     const qs = new URLSearchParams();
     if (params.q) qs.set("q", params.q);
+    if (params.type) qs.set("type", params.type);
     if (params.per_page) qs.set("per_page", String(params.per_page));
     if (params.framework) qs.set("framework", params.framework);
     if (params.sort) qs.set("sort", params.sort);
@@ -119,6 +121,7 @@ export class PullWeightsClient {
     model: string,
     body: {
       tag: string;
+      type?: string;
       description?: string;
       visibility?: string;
       files: { filename: string; size_bytes: number; sha256: string }[];

@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pullweights-mcp"
-version = "0.1.0"
-description = "MCP server for PullWeights — search, pull, and push AI models"
+version = "0.2.0"
+description = "MCP server for PullWeights — search, pull, and push models, datasets, and container images"
 readme = "../README.md"
 license = "MIT"
 requires-python = ">=3.10"
