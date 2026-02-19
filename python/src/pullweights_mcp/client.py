@@ -124,6 +124,20 @@ class PullWeightsClient:
         )
         return result
 
+    async def update_model(
+        self,
+        org: str,
+        model: str,
+        body: dict[str, Any],
+    ) -> dict[str, Any]:
+        self.require_auth()
+        result: dict[str, Any] = await self._request(
+            "PATCH",
+            f"/v1/models/{_encode(org)}/{_encode(model)}",
+            json=body,
+        )
+        return result
+
     async def push_init(
         self,
         org: str,

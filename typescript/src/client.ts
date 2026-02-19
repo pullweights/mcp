@@ -152,6 +152,22 @@ export class PullWeightsClient {
     }
   }
 
+  async updateModel(
+    org: string,
+    model: string,
+    body: { description?: string; visibility?: string; framework?: string; license?: string; tags?: string[] }
+  ): Promise<{ message: string }> {
+    this.requireAuth();
+    return this.request<{ message: string }>(
+      `/v1/models/${encodeURIComponent(org)}/${encodeURIComponent(model)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }
+    );
+  }
+
   async pushFinalize(
     org: string,
     model: string,

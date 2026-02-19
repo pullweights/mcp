@@ -126,6 +126,42 @@ async def list_tools() -> list[types.Tool]:
             },
         ),
         types.Tool(
+            name="update",
+            description="Update model metadata (description, visibility, framework, license, tags)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "model": {
+                        "type": "string",
+                        "description": "Model reference: org/model",
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "New description (supports markdown, up to 50,000 chars)",
+                    },
+                    "visibility": {
+                        "type": "string",
+                        "enum": ["public", "private"],
+                        "description": "Visibility",
+                    },
+                    "framework": {
+                        "type": "string",
+                        "description": "Framework (e.g. pytorch, tensorflow, gguf)",
+                    },
+                    "license": {
+                        "type": "string",
+                        "description": "License (e.g. MIT, Apache-2.0)",
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Tags/labels for the model",
+                    },
+                },
+                "required": ["model"],
+            },
+        ),
+        types.Tool(
             name="pull",
             description="Download files for a model or dataset to disk with SHA-256 verification",
             inputSchema={
@@ -203,6 +239,8 @@ async def call_tool(
             return await _handle_inspect(arguments)
         elif name == "tags":
             return await _handle_tags(arguments)
+        elif name == "update":
+            return await _handle_update(arguments)
         elif name == "pull":
             return await _handle_pull(arguments)
         elif name == "push":
@@ -321,6 +359,29 @@ async def _handle_tags(
         for t in tags
     ]
     return _text("\n".join(lines))
+
+
+async def _handle_update(
+    args: dict[str, Any],
+) -> list[types.TextContent | types.ImageContent | types.AudioContent | types.ResourceLink | types.EmbeddedResource]:
+    ref = args["model"]
+    parts = ref.split("/")
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        raise ValueError(f'Invalid model reference "{ref}". Expected format: org/model')
+    org, model = parts
+
+    body: dict[str, Any] = {}
+    for field in ("description", "visibility", "framework", "license", "tags"):
+        if field in args:
+            body[field] = args[field]
+
+    if not body:
+        return _text(
+            "No fields to update. Provide at least one of: description, visibility, framework, license, tags."
+        )
+
+    res = await client.update_model(org, model, body)
+    return _text(f"Updated {org}/{model}: {res.get('message', 'OK')}")
 
 
 async def _handle_pull(

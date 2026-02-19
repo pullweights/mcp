@@ -153,6 +153,40 @@ server.tool(
   }
 );
 
+// --- update ---
+server.tool(
+  "update",
+  "Update model metadata (description, visibility, framework, license, tags)",
+  {
+    model: z.string().describe("Model reference: org/model"),
+    description: z.string().optional().describe("New description (supports markdown, up to 50,000 chars)"),
+    visibility: z.enum(["public", "private"]).optional().describe("Visibility"),
+    framework: z.string().optional().describe("Framework (e.g. pytorch, tensorflow, gguf)"),
+    license: z.string().optional().describe("License (e.g. MIT, Apache-2.0)"),
+    tags: z.array(z.string()).optional().describe("Tags/labels for the model"),
+  },
+  async ({ model, description, visibility, framework, license, tags }) => {
+    const parts = model.split("/");
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+      throw new Error(`Invalid model reference "${model}". Expected format: org/model`);
+    }
+    const [org, name] = parts;
+    const body: Record<string, unknown> = {};
+    if (description !== undefined) body.description = description;
+    if (visibility !== undefined) body.visibility = visibility;
+    if (framework !== undefined) body.framework = framework;
+    if (license !== undefined) body.license = license;
+    if (tags !== undefined) body.tags = tags;
+
+    if (Object.keys(body).length === 0) {
+      return { content: [{ type: "text", text: "No fields to update. Provide at least one of: description, visibility, framework, license, tags." }] };
+    }
+
+    const res = await client.updateModel(org, name, body as Parameters<typeof client.updateModel>[2]);
+    return { content: [{ type: "text", text: `Updated ${org}/${name}: ${res.message}` }] };
+  }
+);
+
 // --- pull ---
 server.tool(
   "pull",
